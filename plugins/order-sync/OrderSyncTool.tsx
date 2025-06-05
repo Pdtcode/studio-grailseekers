@@ -18,6 +18,7 @@ import { formatDistanceToNow } from "date-fns";
  */
 const OrderSyncTool = () => {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [lastSyncInfo, setLastSyncInfo] = useState<any>(null);
   const [lastSyncTimeAgo, setLastSyncTimeAgo] = useState<string | null>(null);
@@ -135,27 +136,7 @@ const OrderSyncTool = () => {
         }
       };
 
-      // Step 1: Sync from Database to Sanity
-      console.log('Starting DB → Sanity sync...');
-      try {
-        const dbToSanityResponse = await fetch("https://grailseekers.netlify.app/api/sync-orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (dbToSanityResponse.ok) {
-          results.dbToSanity = await dbToSanityResponse.json();
-          results.combinedStats.dbToSanity = results.dbToSanity.stats;
-          console.log('DB → Sanity sync completed:', results.dbToSanity);
-        } else {
-          throw new Error(`DB → Sanity sync failed: ${dbToSanityResponse.status}`);
-        }
-      } catch (error) {
-        console.error('DB → Sanity sync failed:', error);
-        results.combinedStats.dbToSanity.errors = 1;
-      }
-
-      // Step 2: Sync from Sanity to Database
+      // Step 1: Sync from Sanity to Database (update existing order statuses first)
       console.log('Starting Sanity → DB sync...');
       try {
         const sanityToDbResponse = await fetch("https://grailseekers.netlify.app/api/sync-from-sanity", {
@@ -173,6 +154,26 @@ const OrderSyncTool = () => {
       } catch (error) {
         console.error('Sanity → DB sync failed:', error);
         results.combinedStats.sanityToDb.errors = 1;
+      }
+
+      // Step 2: Sync from Database to Sanity (pull new orders)
+      console.log('Starting DB → Sanity sync...');
+      try {
+        const dbToSanityResponse = await fetch("https://grailseekers.netlify.app/api/sync-orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (dbToSanityResponse.ok) {
+          results.dbToSanity = await dbToSanityResponse.json();
+          results.combinedStats.dbToSanity = results.dbToSanity.stats;
+          console.log('DB → Sanity sync completed:', results.dbToSanity);
+        } else {
+          throw new Error(`DB → Sanity sync failed: ${dbToSanityResponse.status}`);
+        }
+      } catch (error) {
+        console.error('DB → Sanity sync failed:', error);
+        results.combinedStats.dbToSanity.errors = 1;
       }
 
       setSyncResult(results);
@@ -202,7 +203,7 @@ const OrderSyncTool = () => {
       toast.push({
         status: totalErrors > 0 ? "warning" : "success",
         title: "Bidirectional sync completed",
-        description: `DB→Sanity: +${results.combinedStats.dbToSanity.created} ~${results.combinedStats.dbToSanity.updated} | Sanity→DB: +${results.combinedStats.sanityToDb.created} ~${results.combinedStats.sanityToDb.updated} | Errors: ${totalErrors}`,
+        description: `Sanity→DB: +${results.combinedStats.sanityToDb.created} ~${results.combinedStats.sanityToDb.updated} | DB→Sanity: +${results.combinedStats.dbToSanity.created} ~${results.combinedStats.dbToSanity.updated} | Errors: ${totalErrors}`,
       });
 
     } catch (error) {
@@ -215,6 +216,78 @@ const OrderSyncTool = () => {
       });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const exportProcessingOrders = async () => {
+    if (isExporting) return;
+
+    try {
+      setIsExporting(true);
+
+      console.log('Starting CSV export of processing orders...');
+      
+      const response = await fetch("https://grailseekers.netlify.app/api/export-processing-orders", {
+        method: "GET",
+        headers: {
+          "Accept": "text/csv",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.push({
+            status: "warning",
+            title: "No processing orders found",
+            description: "There are currently no orders with 'PROCESSING' status to export.",
+          });
+          return;
+        }
+        
+        const errorText = await response.text();
+        throw new Error(`Export failed with status ${response.status}: ${errorText}`);
+      }
+
+      // Get the CSV content
+      const csvContent = await response.text();
+      
+      // Create a blob and download link
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Get filename from response headers or create default
+      const today = new Date().toISOString().split('T')[0];
+      const filename = `processing-orders-${today}.csv`;
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('CSV export completed successfully');
+      
+      toast.push({
+        status: "success",
+        title: "Processing orders exported",
+        description: `Downloaded ${filename} with customer names and shipping addresses.`,
+      });
+
+    } catch (error) {
+      console.error("Error exporting processing orders:", error);
+
+      toast.push({
+        status: "error",
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+      });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -264,9 +337,9 @@ const OrderSyncTool = () => {
             <Heading size={1}>Manual Sync</Heading>
             <Box marginTop={2}>
               <Text>
-                Pull new orders from your database and push any other changes back.
-                Order status changes are handled automatically via webhooks, so this is mainly
-                needed for new orders or data revalidation.
+                First pushes any order status changes from Sanity to your database, 
+                then pulls new orders from your database to Sanity. Order status changes 
+                are also handled automatically via webhooks.
               </Text>
             </Box>
           </Box>
@@ -289,18 +362,7 @@ const OrderSyncTool = () => {
                 <Heading size={1}>Sync Results</Heading>
                 
                 <Stack space={2}>
-                  <Text weight="semibold">Database → Sanity:</Text>
-                  {syncResult.dbToSanity ? (
-                    <Text>
-                      ✓ Created: {syncResult.combinedStats.dbToSanity.created}, 
-                      Updated: {syncResult.combinedStats.dbToSanity.updated}, 
-                      Errors: {syncResult.combinedStats.dbToSanity.errors}
-                    </Text>
-                  ) : (
-                    <Text>✗ Failed to sync</Text>
-                  )}
-                  
-                  <Text weight="semibold">Sanity → Database:</Text>
+                  <Text weight="semibold">Step 1 - Sanity → Database:</Text>
                   {syncResult.sanityToDb ? (
                     <Text>
                       ✓ Created: {syncResult.combinedStats.sanityToDb.created}, 
@@ -310,10 +372,43 @@ const OrderSyncTool = () => {
                   ) : (
                     <Text>✗ Failed to sync</Text>
                   )}
+                  
+                  <Text weight="semibold">Step 2 - Database → Sanity:</Text>
+                  {syncResult.dbToSanity ? (
+                    <Text>
+                      ✓ Created: {syncResult.combinedStats.dbToSanity.created}, 
+                      Updated: {syncResult.combinedStats.dbToSanity.updated}, 
+                      Errors: {syncResult.combinedStats.dbToSanity.errors}
+                    </Text>
+                  ) : (
+                    <Text>✗ Failed to sync</Text>
+                  )}
                 </Stack>
               </Stack>
             </Card>
           )}
+        </Stack>
+      </Card>
+
+      <Card padding={4} radius={2} shadow={1} tone="positive" marginTop={4}>
+        <Stack space={4}>
+          <Box>
+            <Heading size={1}>Export Processing Orders</Heading>
+            <Box marginTop={2}>
+              <Text>
+                Download a CSV file containing customer names and shipping addresses 
+                for all orders with &quot;PROCESSING&quot; status. Perfect for shipping and fulfillment.
+              </Text>
+            </Box>
+          </Box>
+
+          <Button
+            disabled={isExporting || isSyncing}
+            icon={isExporting ? Spinner : undefined}
+            text={isExporting ? "Exporting..." : "Download CSV"}
+            tone="positive"
+            onClick={exportProcessingOrders}
+          />
         </Stack>
       </Card>
     </Flex>
