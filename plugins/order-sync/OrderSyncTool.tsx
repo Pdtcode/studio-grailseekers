@@ -73,9 +73,7 @@ const OrderSyncTool = () => {
 
       // Call the API endpoint to perform the sync
       // Use environment variable or fallback to localhost
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL 
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/sync-orders`
-        : 'http://localhost:3000/api/sync-orders';
+      const apiUrl = "https://grailseekers.netlify.app/api/sync-orders"
       
       const response = await fetch(apiUrl, {
         method: "POST",
