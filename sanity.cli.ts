@@ -6,8 +6,10 @@ export default defineCliConfig({
     dataset: 'production'
   },
   /**
-   * Enable auto-updates for studios.
+   * Disable auto-updates for studios to prevent interactive prompts during CI builds
    * Learn more at https://www.sanity.io/docs/cli#auto-updates
    */
-  autoUpdates: true,
+  deployment: {
+    autoUpdates: false
+  },
 })
