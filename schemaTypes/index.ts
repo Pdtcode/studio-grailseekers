@@ -6,6 +6,7 @@ import { dropPasswordType } from "./dropPasswordType";
 import dropSettingsType from "./dropSettingsType";
 import { productType } from "./productType";
 import { collectionType } from "./collectionType";
+import { promoCodeType } from "./promoCodeType";
 import orderType from "./orderType";
 import syncStateType from "./syncStateType";
 
@@ -19,6 +20,7 @@ export const schemaTypes = [
     productType,
     categoryType,
     collectionType,
+    promoCodeType,
     orderType,
 
     // Utility types
