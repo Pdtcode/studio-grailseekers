@@ -128,9 +128,84 @@ export const productType = defineType({
               ],
               validation: (Rule) => Rule.required(),
             }),
+            defineField({
+              name: "inventory",
+              title: "Inventory",
+              type: "array",
+              description: "Inventory tracking for each option combination",
+              of: [
+                {
+                  type: "object",
+                  fields: [
+                    defineField({
+                      name: "option",
+                      title: "Option",
+                      type: "string",
+                      description: "e.g., 'Small', 'Medium', 'Black', etc.",
+                      validation: (Rule) => Rule.required(),
+                    }),
+                    defineField({
+                      name: "sku",
+                      title: "SKU",
+                      type: "string",
+                      description: "Stock Keeping Unit",
+                    }),
+                    defineField({
+                      name: "quantity",
+                      title: "Quantity",
+                      type: "number",
+                      initialValue: 0,
+                      validation: (Rule) => Rule.required().min(0),
+                    }),
+                    defineField({
+                      name: "lowStockThreshold",
+                      title: "Low Stock Threshold",
+                      type: "number",
+                      description: "Alert when inventory falls below this number",
+                      initialValue: 5,
+                    }),
+                  ],
+                  preview: {
+                    select: {
+                      option: "option",
+                      quantity: "quantity",
+                      sku: "sku",
+                    },
+                    prepare({ option, quantity, sku }) {
+                      return {
+                        title: option,
+                        subtitle: `${quantity} in stock${sku ? ` (SKU: ${sku})` : ""}`,
+                      };
+                    },
+                  },
+                },
+              ],
+            }),
           ],
         },
       ],
+    }),
+    defineField({
+      name: "totalInventory",
+      title: "Total Inventory",
+      type: "number",
+      description: "Total quantity available (for products without variants)",
+      initialValue: 0,
+      hidden: ({ document }) => document?.variants && document.variants.length > 0,
+    }),
+    defineField({
+      name: "sku",
+      title: "SKU",
+      type: "string",
+      description: "Stock Keeping Unit (for products without variants)",
+      hidden: ({ document }) => document?.variants && document.variants.length > 0,
+    }),
+    defineField({
+      name: "lowStockAlert",
+      title: "Low Stock Alert",
+      type: "number",
+      description: "Show alert when inventory falls below this number",
+      initialValue: 5,
     }),
     defineField({
       name: "shopURL",
