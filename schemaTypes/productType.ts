@@ -1,10 +1,23 @@
 import { defineField, defineType } from "sanity";
+import { NeonInventoryDisplay } from "../components/NeonInventoryDisplay";
 
 export const productType = defineType({
   name: "product",
   title: "Product",
   type: "document",
   fields: [
+    // Real-time Neon Inventory Display (custom component)
+    defineField({
+      name: "neonInventory",
+      title: "Current Database Inventory",
+      type: "string",
+      description: "Real-time inventory from Neon database (read-only display)",
+      components: {
+        input: NeonInventoryDisplay,
+      },
+      hidden: false,
+      readOnly: true,
+    }),
     defineField({
       name: "name",
       title: "Product Name",
