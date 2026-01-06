@@ -123,6 +123,35 @@ export const promoCodeType = defineType({
       description: 'Leave empty to apply to all categories',
     }),
     defineField({
+      name: 'discountsServiceFee',
+      title: 'Discount Service Fee',
+      type: 'boolean',
+      description: 'Enable this to allow this promo code to discount the 5% service fee',
+      initialValue: false,
+    }),
+    defineField({
+      name: 'serviceFeeDiscountType',
+      title: 'Service Fee Discount Type',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Percentage Off Service Fee', value: 'percentage' },
+          { title: 'Fixed Amount Off Service Fee', value: 'fixed' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'percentage',
+      hidden: ({ document }) => !document?.discountsServiceFee,
+    }),
+    defineField({
+      name: 'serviceFeeDiscountValue',
+      title: 'Service Fee Discount Value',
+      type: 'number',
+      description: 'For percentage: enter as whole number (e.g., 100 for 100% off). For fixed: enter dollar amount.',
+      validation: Rule => Rule.min(0),
+      hidden: ({ document }) => !document?.discountsServiceFee,
+    }),
+    defineField({
       name: 'notes',
       title: 'Internal Notes',
       type: 'text',
