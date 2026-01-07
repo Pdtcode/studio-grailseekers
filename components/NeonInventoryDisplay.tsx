@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Stack, Text, Badge, Spinner, Box } from '@sanity/ui';
+import { Card, Stack, Text, Badge, Spinner, Box, Flex } from '@sanity/ui';
 import { useFormValue } from 'sanity';
 
 interface VariantInventory {
@@ -37,8 +37,8 @@ export function NeonInventoryDisplay() {
       setError(null);
 
       try {
-        // Update this URL to match your deployment
-        const baseUrl = process.env.SANITY_STUDIO_API_URL || 'http://localhost:3000';
+        // Use production URL by default, fallback to localhost for local dev
+        const baseUrl = process.env.SANITY_STUDIO_API_URL || 'https://gsdesignresearch.com';
         const response = await fetch(`${baseUrl}/api/neon-inventory?slug=${slug}`);
 
         if (!response.ok) {
@@ -140,7 +140,7 @@ export function NeonInventoryDisplay() {
                       radius={2}
                       tone={getLowStockTone(variant.stock)}
                     >
-                      <Stack space={2} direction="row" align="center" justify="space-between">
+                      <Flex align="center" justify="space-between">
                         <Stack space={1}>
                           <Text size={1} weight="medium">
                             {variant.size} {variant.color && `- ${variant.color}`}
@@ -152,7 +152,7 @@ export function NeonInventoryDisplay() {
                         <Badge tone={getLowStockTone(variant.stock)} fontSize={1}>
                           {variant.stock} in stock
                         </Badge>
-                      </Stack>
+                      </Flex>
                     </Card>
                   ))}
                 </Stack>
