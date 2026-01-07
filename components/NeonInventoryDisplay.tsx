@@ -39,23 +39,43 @@ export function NeonInventoryDisplay() {
       try {
         // Use production URL by default, fallback to localhost for local dev
         const baseUrl = process.env.SANITY_STUDIO_API_URL || 'https://gsdesignresearch.com';
-        const response = await fetch(`${baseUrl}/api/neon-inventory?slug=${slug}`);
+        const apiUrl = `${baseUrl}/api/neon-inventory?slug=${slug}`;
+
+        console.log('[Neon Inventory] Fetching from:', apiUrl);
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          mode: 'cors',
+        });
+
+        console.log('[Neon Inventory] Response status:', response.status);
 
         if (!response.ok) {
           if (response.status === 404) {
-            setError('Product not found in Neon database');
+            console.warn('[Neon Inventory] Product not found in Neon database');
+            setError('Product not synced to Neon yet. Save inventory in Sanity to sync.');
           } else {
-            throw new Error(`HTTP ${response.status}`);
+            const errorText = await response.text();
+            console.error('[Neon Inventory] Error response:', errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
           }
           setLoading(false);
           return;
         }
 
         const data = await response.json();
+        console.log('[Neon Inventory] Data received:', data);
         setInventoryData(data);
       } catch (err) {
-        console.error('Error fetching Neon inventory:', err);
-        setError('Failed to fetch inventory from Neon');
+        console.error('[Neon Inventory] Fetch error:', err);
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+          setError('Cannot connect to API. Check that gsdesignresearch.com is accessible.');
+        } else {
+          setError(`Failed to fetch inventory: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
       } finally {
         setLoading(false);
       }
