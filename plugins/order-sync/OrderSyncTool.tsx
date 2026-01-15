@@ -13,6 +13,9 @@ import {
 import { useClient } from "sanity";
 import { formatDistanceToNow } from "date-fns";
 
+// Get API URL from environment variable, fallback to production
+const API_BASE_URL = import.meta.env.SANITY_STUDIO_API_URL || "https://gsdesignresearch.com";
+
 /**
  * A Sanity Studio tool that provides a UI for syncing orders from the database to Sanity
  */
@@ -127,54 +130,128 @@ const OrderSyncTool = () => {
       setIsSyncing(true);
       setSyncResult(null);
 
+      console.log('=== SYNC DEBUG INFO ===');
+      console.log('API_BASE_URL:', API_BASE_URL);
+      console.log('Timestamp:', new Date().toISOString());
+
       const results = {
         dbToSanity: null as any,
         sanityToDb: null as any,
         combinedStats: {
           dbToSanity: { created: 0, updated: 0, errors: 0, total: 0 },
           sanityToDb: { created: 0, updated: 0, errors: 0, total: 0 }
-        }
+        },
+        errors: [] as Array<{ step: string; message: string; details?: any }>
       };
 
       // Step 1: Sync from Sanity to Database (update existing order statuses first)
-      console.log('Starting Sanity → DB sync...');
+      const sanityToDbUrl = `${API_BASE_URL}/api/sync-from-sanity`;
+      console.log('Step 1: Sanity → DB sync');
+      console.log('  URL:', sanityToDbUrl);
       try {
-        const sanityToDbResponse = await fetch("https://grailseekers.netlify.app/api/sync-from-sanity", {
+        const sanityToDbResponse = await fetch(sanityToDbUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });
 
+        console.log('  Status:', sanityToDbResponse.status, sanityToDbResponse.statusText);
+
+        const responseText = await sanityToDbResponse.text();
+        console.log('  Raw response:', responseText);
+
         if (sanityToDbResponse.ok) {
-          results.sanityToDb = await sanityToDbResponse.json();
+          results.sanityToDb = JSON.parse(responseText);
           results.combinedStats.sanityToDb = results.sanityToDb.stats;
-          console.log('Sanity → DB sync completed:', results.sanityToDb);
+          console.log('  Parsed result:', results.sanityToDb);
+
+          // Capture any error details from the API
+          if (results.sanityToDb.errorDetails?.length > 0) {
+            results.errors.push({
+              step: 'Sanity → DB (partial)',
+              message: `${results.sanityToDb.errorDetails.length} order(s) failed to sync`,
+              details: results.sanityToDb.errorDetails
+            });
+          }
         } else {
-          throw new Error(`Sanity → DB sync failed: ${sanityToDbResponse.status}`);
+          let errorData;
+          try {
+            errorData = JSON.parse(responseText);
+          } catch {
+            errorData = { message: responseText };
+          }
+          results.errors.push({
+            step: 'Sanity → DB',
+            message: `HTTP ${sanityToDbResponse.status}: ${sanityToDbResponse.statusText}`,
+            details: errorData
+          });
+          results.combinedStats.sanityToDb.errors = 1;
         }
       } catch (error) {
-        console.error('Sanity → DB sync failed:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('  Error:', errorMessage);
+        results.errors.push({
+          step: 'Sanity → DB',
+          message: errorMessage,
+          details: error instanceof Error ? { name: error.name, stack: error.stack } : undefined
+        });
         results.combinedStats.sanityToDb.errors = 1;
       }
 
       // Step 2: Sync from Database to Sanity (pull new orders)
-      console.log('Starting DB → Sanity sync...');
+      const dbToSanityUrl = `${API_BASE_URL}/api/sync-orders`;
+      console.log('Step 2: DB → Sanity sync');
+      console.log('  URL:', dbToSanityUrl);
       try {
-        const dbToSanityResponse = await fetch("https://grailseekers.netlify.app/api/sync-orders", {
+        const dbToSanityResponse = await fetch(dbToSanityUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });
 
+        console.log('  Status:', dbToSanityResponse.status, dbToSanityResponse.statusText);
+
+        const responseText = await dbToSanityResponse.text();
+        console.log('  Raw response:', responseText);
+
         if (dbToSanityResponse.ok) {
-          results.dbToSanity = await dbToSanityResponse.json();
+          results.dbToSanity = JSON.parse(responseText);
           results.combinedStats.dbToSanity = results.dbToSanity.stats;
-          console.log('DB → Sanity sync completed:', results.dbToSanity);
+          console.log('  Parsed result:', results.dbToSanity);
+
+          // Capture any error details from the API
+          if (results.dbToSanity.errorDetails?.length > 0) {
+            results.errors.push({
+              step: 'DB → Sanity (partial)',
+              message: `${results.dbToSanity.errorDetails.length} order(s) failed to sync`,
+              details: results.dbToSanity.errorDetails
+            });
+          }
         } else {
-          throw new Error(`DB → Sanity sync failed: ${dbToSanityResponse.status}`);
+          let errorData;
+          try {
+            errorData = JSON.parse(responseText);
+          } catch {
+            errorData = { message: responseText };
+          }
+          results.errors.push({
+            step: 'DB → Sanity',
+            message: `HTTP ${dbToSanityResponse.status}: ${dbToSanityResponse.statusText}`,
+            details: errorData
+          });
+          results.combinedStats.dbToSanity.errors = 1;
         }
       } catch (error) {
-        console.error('DB → Sanity sync failed:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('  Error:', errorMessage);
+        results.errors.push({
+          step: 'DB → Sanity',
+          message: errorMessage,
+          details: error instanceof Error ? { name: error.name, stack: error.stack } : undefined
+        });
         results.combinedStats.dbToSanity.errors = 1;
       }
+
+      console.log('=== SYNC COMPLETE ===');
+      console.log('Results:', JSON.stringify(results, null, 2));
 
       setSyncResult(results);
 
@@ -227,7 +304,7 @@ const OrderSyncTool = () => {
 
       console.log('Starting CSV export of processing orders...');
       
-      const response = await fetch("https://grailseekers.netlify.app/api/export-processing-orders", {
+      const response = await fetch(`${API_BASE_URL}/api/export-processing-orders`, {
         method: "GET",
         headers: {
           "Accept": "text/csv",
@@ -360,30 +437,60 @@ const OrderSyncTool = () => {
             >
               <Stack space={3}>
                 <Heading size={1}>Sync Results</Heading>
-                
+
+                <Box padding={2} style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '4px' }}>
+                  <Text size={1} muted>API: {API_BASE_URL}</Text>
+                </Box>
+
                 <Stack space={2}>
                   <Text weight="semibold">Step 1 - Sanity → Database:</Text>
                   {syncResult.sanityToDb ? (
                     <Text>
-                      ✓ Created: {syncResult.combinedStats.sanityToDb.created}, 
-                      Updated: {syncResult.combinedStats.sanityToDb.updated}, 
+                      ✓ Total: {syncResult.combinedStats.sanityToDb.total},
+                      Created: {syncResult.combinedStats.sanityToDb.created},
+                      Updated: {syncResult.combinedStats.sanityToDb.updated},
                       Errors: {syncResult.combinedStats.sanityToDb.errors}
                     </Text>
                   ) : (
                     <Text>✗ Failed to sync</Text>
                   )}
-                  
+
                   <Text weight="semibold">Step 2 - Database → Sanity:</Text>
                   {syncResult.dbToSanity ? (
                     <Text>
-                      ✓ Created: {syncResult.combinedStats.dbToSanity.created}, 
-                      Updated: {syncResult.combinedStats.dbToSanity.updated}, 
+                      ✓ Total: {syncResult.combinedStats.dbToSanity.total},
+                      Created: {syncResult.combinedStats.dbToSanity.created},
+                      Updated: {syncResult.combinedStats.dbToSanity.updated},
                       Errors: {syncResult.combinedStats.dbToSanity.errors}
                     </Text>
                   ) : (
                     <Text>✗ Failed to sync</Text>
                   )}
                 </Stack>
+
+                {syncResult.errors && syncResult.errors.length > 0 && (
+                  <Card padding={3} radius={2} tone="critical">
+                    <Stack space={3}>
+                      <Heading size={0}>Error Details ({syncResult.errors.length})</Heading>
+                      {syncResult.errors.map((err: { step: string; message: string; details?: any }, index: number) => (
+                        <Box key={index} padding={2} style={{ background: 'rgba(0,0,0,0.05)', borderRadius: '4px' }}>
+                          <Stack space={2}>
+                            <Text size={1} weight="semibold">[{err.step}] {err.message}</Text>
+                            {err.details && (
+                              <Box style={{ maxHeight: '150px', overflow: 'auto' }}>
+                                <Text size={0} muted style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                                  {typeof err.details === 'string'
+                                    ? err.details
+                                    : JSON.stringify(err.details, null, 2)}
+                                </Text>
+                              </Box>
+                            )}
+                          </Stack>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Card>
+                )}
               </Stack>
             </Card>
           )}
