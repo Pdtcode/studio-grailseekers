@@ -4,6 +4,7 @@ import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes/index'
 import {orderSyncPlugin} from './plugins/order-sync'
 import {bulkOrderActionsPlugin} from './plugins/bulk-actions'
+import {productSyncPlugin} from './plugins/product-sync'
 
 export default defineConfig({
   name: 'default',
@@ -85,7 +86,8 @@ export default defineConfig({
     }),
     visionTool(),
     orderSyncPlugin(),
-    bulkOrderActionsPlugin()
+    bulkOrderActionsPlugin(),
+    productSyncPlugin()
   ],
 
   schema: {
