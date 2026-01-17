@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -10,7 +10,7 @@ import {
   Badge,
   Button,
 } from '@sanity/ui';
-import { useListeningQuery } from 'sanity';
+import { useClient } from 'sanity';
 import { formatDistanceToNow } from 'date-fns';
 import BulkOrderActions from './BulkOrderActions';
 
@@ -40,8 +40,12 @@ const statusColors = {
 } as const;
 
 const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => {
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>();
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [shouldRefresh, setShouldRefresh] = useState(0);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const client = useClient({ apiVersion: '2023-05-03' });
 
   // Build the GROQ query
   const query = useMemo(() => {
@@ -52,11 +56,23 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
     return `${baseQuery}${filterQuery}${sortQuery}`;
   }, [filter]);
 
-  const { data: orders = [], loading, error } = useListeningQuery<Order[]>(
-    query,
-    {},
-    { tag: `order-list-${shouldRefresh}` }
-  );
+  // Fetch orders
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await client.fetch<Order[]>(query);
+        setOrders(result || []);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to fetch orders'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [client, query, shouldRefresh]);
 
   const handleSelectionChange = (orderIds: string[]) => {
     setSelectedOrderIds(orderIds);
@@ -72,9 +88,9 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
 
   const handleSelectOrder = (orderId: string, checked: boolean) => {
     if (checked) {
-      setSelectedOrderIds(prev => [...(prev || []), orderId]);
+      setSelectedOrderIds(prev => [...prev, orderId]);
     } else {
-      setSelectedOrderIds(prev => (prev || []).filter(id => id !== orderId));
+      setSelectedOrderIds(prev => prev.filter(id => id !== orderId));
     }
   };
 
@@ -83,8 +99,8 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
     setShouldRefresh(prev => prev + 1);
   };
 
-  const isAllSelected = orders.length > 0 && selectedOrderIds?.length === orders.length;
-  const isSomeSelected = (selectedOrderIds?.length || 0) > 0;
+  const isAllSelected = orders.length > 0 && selectedOrderIds.length === orders.length;
+  const isSomeSelected = selectedOrderIds.length > 0;
 
   if (loading) {
     return (
@@ -125,7 +141,7 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
 
         {/* Bulk Actions */}
         <BulkOrderActions
-          selectedOrderIds={selectedOrderIds || []}
+          selectedOrderIds={selectedOrderIds}
           onSelectionChange={handleSelectionChange}
           onAction={handleAction}
         />
@@ -141,12 +157,12 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
               <Card
                 key={order._id}
                 padding={3}
-                tone={selectedOrderIds?.includes(order._id) ? 'primary' : 'default'}
+                tone={selectedOrderIds.includes(order._id) ? 'primary' : 'default'}
                 shadow={1}
               >
                 <Flex align="center" gap={3}>
                   <Checkbox
-                    checked={selectedOrderIds?.includes(order._id) || false}
+                    checked={selectedOrderIds.includes(order._id)}
                     onChange={(event) =>
                       handleSelectOrder(order._id, event.currentTarget.checked)
                     }
