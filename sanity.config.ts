@@ -3,6 +3,7 @@ import {structureTool} from 'sanity/structure'
 import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes/index'
 import {orderSyncPlugin} from './plugins/order-sync'
+import {bulkOrderActionsPlugin} from './plugins/bulk-actions'
 
 export default defineConfig({
   name: 'default',
@@ -83,7 +84,8 @@ export default defineConfig({
           ])
     }),
     visionTool(),
-    orderSyncPlugin()
+    orderSyncPlugin(),
+    bulkOrderActionsPlugin()
   ],
 
   schema: {
