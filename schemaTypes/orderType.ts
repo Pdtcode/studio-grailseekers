@@ -108,6 +108,47 @@ export default defineType({
         defineField({ name: "country", type: "string", title: "Country" }),
       ],
     }),
+    // Individual shipping fields (synced from Neon)
+    defineField({
+      name: "shippingFirstName",
+      title: "Shipping First Name",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingLastName",
+      title: "Shipping Last Name",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingEmail",
+      title: "Shipping Email",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingPhone",
+      title: "Shipping Phone",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingCity",
+      title: "Shipping City",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingState",
+      title: "Shipping State",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingZipCode",
+      title: "Shipping Zip Code",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingCountry",
+      title: "Shipping Country",
+      type: "string",
+    }),
     defineField({
       name: "stripePaymentIntentId",
       title: "Stripe Payment Intent ID",
