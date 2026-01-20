@@ -82,6 +82,21 @@ export default defineType({
               title: "Product Name",
             }),
             defineField({
+              name: "sku",
+              type: "string",
+              title: "SKU",
+            }),
+            defineField({
+              name: "color",
+              type: "string",
+              title: "Color",
+            }),
+            defineField({
+              name: "size",
+              type: "string",
+              title: "Size",
+            }),
+            defineField({
               name: "quantity",
               type: "number",
               title: "Quantity",
