@@ -123,7 +123,7 @@ export default defineType({
         defineField({ name: "country", type: "string", title: "Country" }),
       ],
     }),
-    // Individual shipping fields (synced from Neon)
+    // Flat fields preserved for backwards compatibility — prefer shippingAddress object
     defineField({
       name: "shippingFirstName",
       title: "Shipping First Name",
