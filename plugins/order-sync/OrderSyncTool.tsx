@@ -14,7 +14,9 @@ import { useClient } from "sanity";
 import { formatDistanceToNow } from "date-fns";
 
 // Get API URL from environment variable, fallback to production
-const API_BASE_URL = import.meta.env.SANITY_STUDIO_API_URL || "https://gsdesignresearch.com";
+const API_BASE_URL = typeof import.meta.env !== 'undefined'
+  ? (import.meta.env.SANITY_STUDIO_API_URL || "https://gsdesignresearch.com")
+  : "https://gsdesignresearch.com";
 
 /**
  * A Sanity Studio tool that provides a UI for syncing orders from the database to Sanity

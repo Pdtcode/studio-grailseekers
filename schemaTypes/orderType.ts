@@ -107,24 +107,6 @@ export default defineType({
       ],
     }),
     defineField({
-      name: "shippingAddress",
-      title: "Shipping Address",
-      type: "object",
-      fields: [
-        defineField({ name: "name", type: "string", title: "Name" }),
-        defineField({ name: "street", type: "string", title: "Street" }),
-        defineField({ name: "city", type: "string", title: "City" }),
-        defineField({ name: "state", type: "string", title: "State" }),
-        defineField({
-          name: "postalCode",
-          type: "string",
-          title: "Postal Code",
-        }),
-        defineField({ name: "country", type: "string", title: "Country" }),
-      ],
-    }),
-    // Flat fields preserved for backwards compatibility — prefer shippingAddress object
-    defineField({
       name: "shippingFirstName",
       title: "Shipping First Name",
       type: "string",
@@ -142,6 +124,11 @@ export default defineType({
     defineField({
       name: "shippingPhone",
       title: "Shipping Phone",
+      type: "string",
+    }),
+    defineField({
+      name: "shippingAddress",
+      title: "Shipping Address",
       type: "string",
     }),
     defineField({
