@@ -78,9 +78,18 @@ export default defineConfig({
                   ])
               ),
             S.divider(),
+            // Pickup Locations
+            S.listItem()
+              .title('Pickup Locations')
+              .child(
+                S.documentList()
+                  .title('Pickup Locations')
+                  .filter('_type == "pickupLocation"')
+              ),
+            S.divider(),
             // All other document types
             ...S.documentTypeListItems().filter(
-              (listItem) => !['order'].includes(listItem.getId() || '')
+              (listItem) => !['order', 'pickupLocation'].includes(listItem.getId() || '')
             ),
           ])
     }),

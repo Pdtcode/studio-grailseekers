@@ -132,6 +132,11 @@ export default defineType({
       type: "string",
     }),
     defineField({
+      name: "shippingApartment",
+      title: "Shipping Apartment / Unit",
+      type: "string",
+    }),
+    defineField({
       name: "shippingCity",
       title: "Shipping City",
       type: "string",
@@ -149,6 +154,28 @@ export default defineType({
     defineField({
       name: "shippingCountry",
       title: "Shipping Country",
+      type: "string",
+    }),
+    defineField({
+      name: "deliveryMethod",
+      title: "Delivery Method",
+      type: "string",
+      options: {
+        list: [
+          { title: "Shipping", value: "shipping" },
+          { title: "Pickup", value: "pickup" },
+        ],
+        layout: "dropdown",
+      },
+    }),
+    defineField({
+      name: "pickupLocationId",
+      title: "Pickup Location ID",
+      type: "string",
+    }),
+    defineField({
+      name: "pickupLocationName",
+      title: "Pickup Location Name",
       type: "string",
     }),
     defineField({

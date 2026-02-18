@@ -9,6 +9,7 @@ import { collectionType } from "./collectionType";
 import { promoCodeType } from "./promoCodeType";
 import { promoUsageType } from "./promoUsageType";
 import orderType from "./orderType";
+import pickupLocationType from "./pickupLocationType";
 import syncStateType from "./syncStateType";
 
 export const schemaTypes = [
@@ -24,6 +25,7 @@ export const schemaTypes = [
     promoCodeType,
     promoUsageType,
     orderType,
+    pickupLocationType,
 
     // Utility types
     dropPasswordType,
