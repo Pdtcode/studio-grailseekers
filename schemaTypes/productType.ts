@@ -1,5 +1,6 @@
 import { defineField, defineType } from "sanity";
 import { NeonInventoryDisplay } from "../components/NeonInventoryDisplay";
+import { ImageDisplayInput } from "../components/ImageDisplayInput";
 
 export const productType = defineType({
   name: "product",
@@ -73,6 +74,55 @@ export const productType = defineType({
           },
           // Images will automatically get a unique key from Sanity
         },
+      ],
+    }),
+    defineField({
+      name: "imageDisplay",
+      title: "Image Sizing",
+      type: "object",
+      description:
+        "Controls how this product's photo is fitted into the square frames used across the store. Leave as Crop to fill unless the photo is a different shape to your other products.",
+      options: { collapsible: true, collapsed: false },
+      components: { input: ImageDisplayInput },
+      fields: [
+        defineField({
+          name: "fit",
+          title: "Fit",
+          type: "string",
+          options: {
+            list: [
+              { title: "Crop to fill (default)", value: "cover" },
+              { title: "Fit whole image, pad the sides", value: "contain" },
+            ],
+            layout: "radio",
+          },
+          initialValue: "cover",
+        }),
+        defineField({
+          name: "background",
+          title: "Background Colour",
+          type: "string",
+          description:
+            "Hex colour used for the padding, e.g. ffffff for white. Only applies when fitting the whole image.",
+          initialValue: "ffffff",
+          validation: (Rule) =>
+            Rule.custom((value) => {
+              if (!value) return true;
+
+              return /^#?[0-9a-fA-F]{3,8}$/.test(String(value))
+                ? true
+                : "Enter a hex colour such as ffffff";
+            }),
+        }),
+        defineField({
+          name: "pad",
+          title: "Padding",
+          type: "number",
+          description:
+            "Shrinks the product further inside the square. 0 = fill the frame, higher = smaller product. Try 40-120.",
+          initialValue: 0,
+          validation: (Rule) => Rule.min(0).max(400),
+        }),
       ],
     }),
     defineField({
