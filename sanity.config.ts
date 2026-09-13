@@ -87,9 +87,44 @@ export default defineConfig({
                   .filter('_type == "pickupLocation"')
               ),
             S.divider(),
+            // Bundle Deals
+            S.listItem()
+              .title('Bundle Deals')
+              .child(
+                S.list()
+                  .title('Bundle Deals')
+                  .items([
+                    S.listItem()
+                      .title('Active Bundles')
+                      .child(
+                        S.documentList()
+                          .title('Active Bundles')
+                          .filter('_type == "bundleDeal" && isActive == true')
+                          .defaultOrdering([{field: 'name', direction: 'asc'}])
+                      ),
+                    S.listItem()
+                      .title('Inactive Bundles')
+                      .child(
+                        S.documentList()
+                          .title('Inactive Bundles')
+                          .filter('_type == "bundleDeal" && isActive != true')
+                          .defaultOrdering([{field: 'name', direction: 'asc'}])
+                      ),
+                    S.divider(),
+                    S.listItem()
+                      .title('All Bundles')
+                      .child(
+                        S.documentList()
+                          .title('All Bundles')
+                          .filter('_type == "bundleDeal"')
+                          .defaultOrdering([{field: 'name', direction: 'asc'}])
+                      ),
+                  ])
+              ),
+            S.divider(),
             // All other document types
             ...S.documentTypeListItems().filter(
-              (listItem) => !['order', 'pickupLocation'].includes(listItem.getId() || '')
+              (listItem) => !['order', 'pickupLocation', 'bundleDeal'].includes(listItem.getId() || '')
             ),
           ])
     }),
