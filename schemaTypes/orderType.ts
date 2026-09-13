@@ -164,6 +164,7 @@ export default defineType({
         list: [
           { title: "Shipping", value: "shipping" },
           { title: "Pickup", value: "pickup" },
+          { title: "In Person", value: "inperson" },
         ],
         layout: "dropdown",
       },
