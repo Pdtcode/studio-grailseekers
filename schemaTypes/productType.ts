@@ -138,6 +138,14 @@ export const productType = defineType({
       of: [{ type: "reference", to: { type: "collection" } }],
     }),
     defineField({
+      name: "isActive",
+      title: "Active",
+      description:
+        "Turn this OFF to retire the product from the website while keeping it here in the Studio. Hidden products disappear from the store, search, categories, collections, drops, bundles and the sitemap, and their product page returns Not Found. Existing orders are unaffected.",
+      type: "boolean",
+      initialValue: true,
+    }),
+    defineField({
       name: "inStock",
       title: "In Stock",
       type: "boolean",
@@ -290,11 +298,17 @@ export const productType = defineType({
       title: "name",
       media: "mainImage",
       price: "price",
+      isActive: "isActive",
     },
-    prepare({ title, media, price }) {
+    prepare({ title, media, price, isActive }) {
+      // Only ever called out when hidden — products without the field predate
+      // it and are still live, so an "Active" badge on almost everything would
+      // just be noise.
+      const hidden = isActive === false;
+
       return {
-        title,
-        subtitle: price ? `$${price}` : "Price not set",
+        title: hidden ? `${title} — hidden` : title,
+        subtitle: `${hidden ? "🚫 Not on the website · " : ""}${price ? `$${price}` : "Price not set"}`,
         media,
       };
     },

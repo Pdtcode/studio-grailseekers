@@ -78,6 +78,41 @@ export default defineConfig({
                   ])
               ),
             S.divider(),
+            // Products, split by whether they are live on the website
+            S.listItem()
+              .title('Products')
+              .child(
+                S.list()
+                  .title('Products')
+                  .items([
+                    S.listItem()
+                      .title('Live On Site')
+                      .child(
+                        S.documentList()
+                          .title('Live On Site')
+                          .filter('_type == "product" && isActive != false')
+                          .defaultOrdering([{field: 'name', direction: 'asc'}])
+                      ),
+                    S.listItem()
+                      .title('Hidden')
+                      .child(
+                        S.documentList()
+                          .title('Hidden')
+                          .filter('_type == "product" && isActive == false')
+                          .defaultOrdering([{field: 'name', direction: 'asc'}])
+                      ),
+                    S.divider(),
+                    S.listItem()
+                      .title('All Products')
+                      .child(
+                        S.documentList()
+                          .title('All Products')
+                          .filter('_type == "product"')
+                          .defaultOrdering([{field: 'name', direction: 'asc'}])
+                      ),
+                  ])
+              ),
+            S.divider(),
             // Pickup Locations
             S.listItem()
               .title('Pickup Locations')
@@ -124,7 +159,7 @@ export default defineConfig({
             S.divider(),
             // All other document types
             ...S.documentTypeListItems().filter(
-              (listItem) => !['order', 'pickupLocation', 'bundleDeal'].includes(listItem.getId() || '')
+              (listItem) => !['order', 'pickupLocation', 'bundleDeal', 'product'].includes(listItem.getId() || '')
             ),
           ])
     }),
