@@ -1,6 +1,5 @@
 import {defineConfig} from 'sanity'
 import {structureTool} from 'sanity/structure'
-import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes/index'
 import {orderSyncPlugin} from './plugins/order-sync'
 import {bulkOrderActionsPlugin} from './plugins/bulk-actions'
@@ -10,8 +9,20 @@ import {productSyncPlugin} from './plugins/product-sync'
 // of the public API — the dataset is public, and this holds the password.
 const SITE_PROTECTION_ID = 'settings.siteProtection'
 
-// Document types that are singletons or written by code, not created by hand
-const NO_CREATE_TYPES = ['inventoryAdjustment', 'siteProtection']
+// Types kept in the schema (their data and website code still work) but not
+// shown in the Studio because they're unused or internal. Add a type back to
+// the desk below to bring it back.
+const HIDDEN_TYPES = [
+  'post', // News — no posts, /news isn't linked from the site
+  'author',
+  'dropPassword', // Drops — drop page is shelved
+  'dropSettings',
+  'promoUsage', // nothing records promo usage
+  'syncState', // order-sync bookkeeping, written by the website
+]
+
+// Types that can't be created from "Create new": singletons, code-written, or hidden
+const NO_CREATE_TYPES = ['inventoryAdjustment', 'siteProtection', ...HIDDEN_TYPES]
 
 export default defineConfig({
   name: 'default',
@@ -183,13 +194,21 @@ export default defineConfig({
                   ])
               ),
             S.divider(),
-            // All other document types
-            ...S.documentTypeListItems().filter(
-              (listItem) => !['order', 'pickupLocation', 'bundleDeal', 'product', 'inventoryAdjustment', 'siteProtection'].includes(listItem.getId() || '')
-            ),
+            // Less frequently edited store configuration
+            S.listItem()
+              .title('Store Setup')
+              .id('storeSetup')
+              .child(
+                S.list()
+                  .title('Store Setup')
+                  .items([
+                    S.documentTypeListItem('category').title('Categories'),
+                    S.documentTypeListItem('collection').title('Collections'),
+                    S.documentTypeListItem('promoCode').title('Promo Codes'),
+                  ])
+              ),
           ])
     }),
-    visionTool(),
     orderSyncPlugin(),
     bulkOrderActionsPlugin(),
     productSyncPlugin()
