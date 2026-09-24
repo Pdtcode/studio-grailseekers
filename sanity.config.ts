@@ -6,6 +6,13 @@ import {orderSyncPlugin} from './plugins/order-sync'
 import {bulkOrderActionsPlugin} from './plugins/bulk-actions'
 import {productSyncPlugin} from './plugins/product-sync'
 
+// The single Site Password settings document. The dot in the id keeps it out
+// of the public API — the dataset is public, and this holds the password.
+const SITE_PROTECTION_ID = 'settings.siteProtection'
+
+// Document types that are singletons or written by code, not created by hand
+const NO_CREATE_TYPES = ['inventoryAdjustment', 'siteProtection']
+
 export default defineConfig({
   name: 'default',
   title: 'grail-seekers',
@@ -19,6 +26,16 @@ export default defineConfig({
         S.list()
           .title('Content')
           .items([
+            S.listItem()
+              .title('Site Password')
+              .id('siteProtection')
+              .child(
+                S.document()
+                  .title('Site Password')
+                  .schemaType('siteProtection')
+                  .documentId(SITE_PROTECTION_ID)
+              ),
+            S.divider(),
             // Orders organized by status
             S.listItem()
               .title('Orders')
@@ -168,7 +185,7 @@ export default defineConfig({
             S.divider(),
             // All other document types
             ...S.documentTypeListItems().filter(
-              (listItem) => !['order', 'pickupLocation', 'bundleDeal', 'product', 'inventoryAdjustment'].includes(listItem.getId() || '')
+              (listItem) => !['order', 'pickupLocation', 'bundleDeal', 'product', 'inventoryAdjustment', 'siteProtection'].includes(listItem.getId() || '')
             ),
           ])
     }),
@@ -180,7 +197,15 @@ export default defineConfig({
 
   schema: {
     types: schemaTypes,
-    // Log entries are only created by the inventory panel
-    templates: (templates) => templates.filter(({schemaType}) => schemaType !== 'inventoryAdjustment'),
+    templates: (templates) => templates.filter(({schemaType}) => !NO_CREATE_TYPES.includes(schemaType)),
+  },
+
+  document: {
+    // Site Password is one fixed document: allow publishing and reverting it,
+    // but not deleting, duplicating or unpublishing it.
+    actions: (actions, {schemaType}) =>
+      schemaType === 'siteProtection'
+        ? actions.filter(({action}) => action === 'publish' || action === 'discardChanges' || action === 'restore')
+        : actions,
   },
 })

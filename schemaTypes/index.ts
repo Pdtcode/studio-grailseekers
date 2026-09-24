@@ -13,6 +13,7 @@ import pickupLocationType from "./pickupLocationType";
 import bundleDealType from "./bundleDealType";
 import syncStateType from "./syncStateType";
 import inventoryAdjustmentType from "./inventoryAdjustmentType";
+import siteProtectionType from "./siteProtectionType";
 
 export const schemaTypes = [
     // Content types
@@ -35,4 +36,5 @@ export const schemaTypes = [
     dropPasswordType,
     dropSettingsType,
     syncStateType,
+    siteProtectionType,
 ]
