@@ -7,6 +7,13 @@ import {bulkOrderActionsPlugin} from './plugins/bulk-actions'
 // of the public API — the dataset is public, and this holds the password.
 const SITE_PROTECTION_ID = 'settings.siteProtection'
 
+// The single Spend & Save campaign document. Not secret, so a plain id the
+// website can read from the public API.
+const SPEND_CAMPAIGN_ID = 'spendCampaign'
+
+// Singletons: one fixed document each, edited in place
+const SINGLETON_TYPES = ['siteProtection', 'spendCampaign']
+
 // Types kept in the schema (their data and website code still work) but not
 // shown in the Studio because they're unused or internal. Add a type back to
 // the desk below to bring it back.
@@ -20,7 +27,7 @@ const HIDDEN_TYPES = [
 ]
 
 // Types that can't be created from "Create new": singletons, code-written, or hidden
-const NO_CREATE_TYPES = ['inventoryAdjustment', 'siteProtection', ...HIDDEN_TYPES]
+const NO_CREATE_TYPES = ['inventoryAdjustment', ...SINGLETON_TYPES, ...HIDDEN_TYPES]
 
 export default defineConfig({
   name: 'default',
@@ -176,6 +183,15 @@ export default defineConfig({
                     S.documentTypeListItem('collection').title('Collections'),
                     S.documentTypeListItem('promoCode').title('Promo Codes'),
                     S.documentTypeListItem('pickupLocation').title('Pickup Locations'),
+                    S.listItem()
+                      .title('Spend & Save')
+                      .id('spendCampaign')
+                      .child(
+                        S.document()
+                          .title('Spend & Save')
+                          .schemaType('spendCampaign')
+                          .documentId(SPEND_CAMPAIGN_ID)
+                      ),
                     S.divider(),
                     S.listItem()
                       .title('Site Password')
@@ -209,10 +225,10 @@ export default defineConfig({
   },
 
   document: {
-    // Site Password is one fixed document: allow publishing and reverting it,
-    // but not deleting, duplicating or unpublishing it.
+    // Singletons are one fixed document each: allow publishing and reverting,
+    // but not deleting, duplicating or unpublishing.
     actions: (actions, {schemaType}) =>
-      schemaType === 'siteProtection'
+      SINGLETON_TYPES.includes(schemaType)
         ? actions.filter(({action}) => action === 'publish' || action === 'discardChanges' || action === 'restore')
         : actions,
   },

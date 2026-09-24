@@ -43,6 +43,8 @@ interface Order {
   customerName?: string;
   customerEmail?: string;
   total?: number;
+  campaignDiscount?: number;
+  campaignName?: string;
   status: string;
   createdAt: string;
   items?: OrderItem[];
@@ -100,7 +102,7 @@ function addressLines(order: Order): string[] {
 }
 
 const ORDER_FIELDS = `
-  _id, orderNumber, customerName, customerEmail, total, status, createdAt,
+  _id, orderNumber, customerName, customerEmail, total, campaignDiscount, campaignName, status, createdAt,
   items[]{_key, name, sku, color, size, quantity, price},
   shippingFirstName, shippingLastName, shippingEmail, shippingPhone,
   shippingAddress, shippingApartment, shippingCity, shippingState, shippingZipCode, shippingCountry,
@@ -358,9 +360,10 @@ function OrderDetail({
 }) {
   const items = order.items ?? [];
   const subtotal = items.reduce((sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1), 0);
-  // Sanity only stores item prices and the final total, so shipping, service
-  // fees and promo discounts show up together as the difference.
-  const adjustments = Math.round(((order.total ?? 0) - subtotal) * 100) / 100;
+  const campaignDiscount = order.campaignDiscount ?? 0;
+  // Sanity stores item prices, the Spend & Save discount and the final total,
+  // so shipping, service fees and promo codes show up together as the rest.
+  const adjustments = Math.round(((order.total ?? 0) - subtotal + campaignDiscount) * 100) / 100;
   const address = addressLines(order);
   const email = order.customerEmail || order.shippingEmail;
 
@@ -479,6 +482,14 @@ function OrderDetail({
               </Text>
               <Text size={1}>{money(subtotal)}</Text>
             </Flex>
+            {campaignDiscount > 0 && (
+              <Flex justify="space-between">
+                <Text size={1} muted>
+                  {order.campaignName || 'Spend & Save'}
+                </Text>
+                <Text size={1}>−{money(campaignDiscount)}</Text>
+              </Flex>
+            )}
             {adjustments !== 0 && (
               <Flex justify="space-between">
                 <Text size={1} muted>

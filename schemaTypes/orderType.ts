@@ -34,6 +34,20 @@ export default defineType({
       validation: (Rule) => Rule.required().precision(2),
     }),
     defineField({
+      name: "campaignDiscount",
+      title: "Spend & Save Discount",
+      type: "number",
+      description: "Discount from the site-wide Spend & Save campaign (set automatically at checkout)",
+      readOnly: true,
+    }),
+    defineField({
+      name: "campaignName",
+      title: "Campaign",
+      type: "string",
+      readOnly: true,
+      hidden: ({ document }) => !document?.campaignDiscount,
+    }),
+    defineField({
       name: "status",
       title: "Status",
       type: "string",

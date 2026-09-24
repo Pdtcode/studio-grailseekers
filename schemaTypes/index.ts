@@ -14,6 +14,7 @@ import bundleDealType from "./bundleDealType";
 import syncStateType from "./syncStateType";
 import inventoryAdjustmentType from "./inventoryAdjustmentType";
 import siteProtectionType from "./siteProtectionType";
+import spendCampaignType from "./spendCampaignType";
 
 export const schemaTypes = [
     // Content types
@@ -37,4 +38,5 @@ export const schemaTypes = [
     dropSettingsType,
     syncStateType,
     siteProtectionType,
+    spendCampaignType,
 ]
