@@ -11,7 +11,7 @@ export const bulkOrderActionsPlugin = definePlugin({
       icon: ListIcon,
       component: () => (
         <OrderListView
-          title="All Orders"
+          title="Orders"
           filter=""
         />
       ),
