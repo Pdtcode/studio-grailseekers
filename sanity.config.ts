@@ -112,6 +112,15 @@ export default defineConfig({
                       ),
                   ])
               ),
+            // Every stock edit made from a product's inventory panel
+            S.listItem()
+              .title('Inventory Log')
+              .child(
+                S.documentList()
+                  .title('Inventory Log')
+                  .filter('_type == "inventoryAdjustment"')
+                  .defaultOrdering([{field: '_createdAt', direction: 'desc'}])
+              ),
             S.divider(),
             // Pickup Locations
             S.listItem()
@@ -159,7 +168,7 @@ export default defineConfig({
             S.divider(),
             // All other document types
             ...S.documentTypeListItems().filter(
-              (listItem) => !['order', 'pickupLocation', 'bundleDeal', 'product'].includes(listItem.getId() || '')
+              (listItem) => !['order', 'pickupLocation', 'bundleDeal', 'product', 'inventoryAdjustment'].includes(listItem.getId() || '')
             ),
           ])
     }),
@@ -171,5 +180,7 @@ export default defineConfig({
 
   schema: {
     types: schemaTypes,
+    // Log entries are only created by the inventory panel
+    templates: (templates) => templates.filter(({schemaType}) => schemaType !== 'inventoryAdjustment'),
   },
 })

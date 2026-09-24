@@ -223,8 +223,10 @@ export const productType = defineType({
                     }),
                     defineField({
                       name: "quantity",
-                      title: "Quantity",
+                      title: "Starting Quantity",
                       type: "number",
+                      description:
+                        "Only used when this option is first synced. To change stock later, use Current Database Inventory at the top.",
                       initialValue: 0,
                       validation: (Rule) => Rule.required().min(0),
                     }),
@@ -258,9 +260,10 @@ export const productType = defineType({
     }),
     defineField({
       name: "totalInventory",
-      title: "Total Inventory",
+      title: "Starting Inventory",
       type: "number",
-      description: "Total quantity available (for products without variants)",
+      description:
+        "Stock for products without variants, used only when first synced. To change stock later, use Current Database Inventory at the top.",
       initialValue: 0,
       hidden: ({ document }) => document?.variants && document.variants.length > 0,
     }),
