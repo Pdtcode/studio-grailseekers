@@ -1,9 +1,7 @@
 import {defineConfig} from 'sanity'
 import {structureTool} from 'sanity/structure'
 import {schemaTypes} from './schemaTypes/index'
-import {orderSyncPlugin} from './plugins/order-sync'
 import {bulkOrderActionsPlugin} from './plugins/bulk-actions'
-import {productSyncPlugin} from './plugins/product-sync'
 
 // The single Site Password settings document. The dot in the id keeps it out
 // of the public API — the dataset is public, and this holds the password.
@@ -18,7 +16,7 @@ const HIDDEN_TYPES = [
   'dropPassword', // Drops — drop page is shelved
   'dropSettings',
   'promoUsage', // nothing records promo usage
-  'syncState', // order-sync bookkeeping, written by the website
+  'syncState', // webhook/sync bookkeeping, written by the website
 ]
 
 // Types that can't be created from "Create new": singletons, code-written, or hidden
@@ -209,9 +207,7 @@ export default defineConfig({
               ),
           ])
     }),
-    orderSyncPlugin(),
     bulkOrderActionsPlugin(),
-    productSyncPlugin()
   ],
 
   schema: {

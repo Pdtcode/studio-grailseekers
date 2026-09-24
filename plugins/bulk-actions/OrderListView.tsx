@@ -13,6 +13,7 @@ import {
 import { useClient } from 'sanity';
 import { formatDistanceToNow } from 'date-fns';
 import BulkOrderActions from './BulkOrderActions';
+import ExportProcessingOrdersButton from './ExportProcessingOrdersButton';
 
 interface OrderListViewProps {
   filter?: string;
@@ -133,9 +134,12 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
               indeterminate={isSomeSelected && !isAllSelected}
               onChange={(event) => handleSelectAll(event.currentTarget.checked)}
             />
-            <Text weight="medium" size={2}>
-              {title} ({orders.length})
-            </Text>
+            <Box flex={1}>
+              <Text weight="medium" size={2}>
+                {title} ({orders.length})
+              </Text>
+            </Box>
+            <ExportProcessingOrdersButton />
           </Flex>
         </Card>
 

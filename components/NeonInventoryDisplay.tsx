@@ -126,7 +126,7 @@ export function NeonInventoryDisplay() {
       if (!response.ok) {
         if (response.status === 404) {
           setError(
-            'Product not in the database yet. Publish it, then run Product Sync to create its stock records.'
+            'Product not in the database yet. Publish it — its stock records are created automatically within a few seconds, then click Refresh.'
           );
         } else {
           throw new Error(`HTTP ${response.status}: ${await response.text()}`);
