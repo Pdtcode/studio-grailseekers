@@ -35,16 +35,6 @@ export default defineConfig({
         S.list()
           .title('Content')
           .items([
-            S.listItem()
-              .title('Site Password')
-              .id('siteProtection')
-              .child(
-                S.document()
-                  .title('Site Password')
-                  .schemaType('siteProtection')
-                  .documentId(SITE_PROTECTION_ID)
-              ),
-            S.divider(),
             // Orders organized by status
             S.listItem()
               .title('Orders')
@@ -138,24 +128,6 @@ export default defineConfig({
                       ),
                   ])
               ),
-            // Every stock edit made from a product's inventory panel
-            S.listItem()
-              .title('Inventory Log')
-              .child(
-                S.documentList()
-                  .title('Inventory Log')
-                  .filter('_type == "inventoryAdjustment"')
-                  .defaultOrdering([{field: '_createdAt', direction: 'desc'}])
-              ),
-            S.divider(),
-            // Pickup Locations
-            S.listItem()
-              .title('Pickup Locations')
-              .child(
-                S.documentList()
-                  .title('Pickup Locations')
-                  .filter('_type == "pickupLocation"')
-              ),
             S.divider(),
             // Bundle Deals
             S.listItem()
@@ -203,6 +175,27 @@ export default defineConfig({
                     S.documentTypeListItem('category').title('Categories'),
                     S.documentTypeListItem('collection').title('Collections'),
                     S.documentTypeListItem('promoCode').title('Promo Codes'),
+                    S.documentTypeListItem('pickupLocation').title('Pickup Locations'),
+                    S.divider(),
+                    S.listItem()
+                      .title('Site Password')
+                      .id('siteProtection')
+                      .child(
+                        S.document()
+                          .title('Site Password')
+                          .schemaType('siteProtection')
+                          .documentId(SITE_PROTECTION_ID)
+                      ),
+                    // Every stock edit made from a product's inventory panel
+                    S.listItem()
+                      .title('Inventory Log')
+                      .id('inventoryLog')
+                      .child(
+                        S.documentList()
+                          .title('Inventory Log')
+                          .filter('_type == "inventoryAdjustment"')
+                          .defaultOrdering([{field: '_createdAt', direction: 'desc'}])
+                      ),
                   ])
               ),
           ])
