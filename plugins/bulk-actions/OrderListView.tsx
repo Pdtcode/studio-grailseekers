@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -14,13 +14,15 @@ import {
   TabList,
   Text,
   TextInput,
+  useMediaIndex,
   useToast,
 } from '@sanity/ui';
-import { CopyIcon, LaunchIcon, RefreshIcon, SearchIcon } from '@sanity/icons';
+import { ArrowLeftIcon, CopyIcon, LaunchIcon, RefreshIcon, SearchIcon } from '@sanity/icons';
 import { useClient } from 'sanity';
 import { format, formatDistanceToNow } from 'date-fns';
 import BulkOrderActions from './BulkOrderActions';
 import ExportProcessingOrdersButton from './ExportProcessingOrdersButton';
+import { CARRIERS, carrierTitle, trackingLink } from '../../lib/tracking';
 
 interface OrderListViewProps {
   filter?: string;
@@ -60,6 +62,10 @@ interface Order {
   shippingCountry?: string;
   deliveryMethod?: 'shipping' | 'pickup' | 'inperson';
   pickupLocationName?: string;
+  shippingCarrier?: string;
+  trackingNumber?: string;
+  trackingUrl?: string;
+  shippedAt?: string;
   stripePaymentIntentId?: string;
   notes?: string;
 }
@@ -88,6 +94,8 @@ const deliveryLabel = (order: Order) =>
       ? 'In person'
       : 'Shipping';
 
+const isPosted = (order: Order) => order.deliveryMethod !== 'pickup' && order.deliveryMethod !== 'inperson';
+
 const itemCount = (order: Order) =>
   (order.items ?? []).reduce((sum, item) => sum + (item.quantity ?? 1), 0);
 
@@ -106,13 +114,17 @@ const ORDER_FIELDS = `
   items[]{_key, name, sku, color, size, quantity, price},
   shippingFirstName, shippingLastName, shippingEmail, shippingPhone,
   shippingAddress, shippingApartment, shippingCity, shippingState, shippingZipCode, shippingCountry,
-  deliveryMethod, pickupLocationName, stripePaymentIntentId, notes
+  deliveryMethod, pickupLocationName, shippingCarrier, trackingNumber, trackingUrl, shippedAt,
+  stripePaymentIntentId, notes
 `;
 
 /** Order Manager: search, filter by status, and see each order in full. */
 const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => {
   const client = useClient({ apiVersion: '2023-05-03' });
   const toast = useToast();
+  // List and detail sit side by side from 900px; narrower screens show one at a time
+  const isSplit = useMediaIndex() >= 3;
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +134,7 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [returnToId, setReturnToId] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -153,12 +166,32 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
       if (statusFilter !== 'ALL' && order.status !== statusFilter) return false;
       if (!term) return true;
 
-      return [order.orderNumber, order.customerName, order.customerEmail, order.shippingEmail]
+      return [order.orderNumber, order.customerName, order.customerEmail, order.shippingEmail, order.trackingNumber]
         .some((value) => value?.toLowerCase().includes(term));
     });
   }, [orders, statusFilter, search]);
 
-  const activeOrder = visibleOrders.find((o) => o._id === activeId) ?? visibleOrders[0] ?? null;
+  const activeOrder = isSplit
+    ? (visibleOrders.find((o) => o._id === activeId) ?? visibleOrders[0] ?? null)
+    : // Look in all orders so a status change that moves it out of the current tab keeps it open
+      (orders.find((o) => o._id === activeId) ?? null);
+
+  // On narrow screens, show the top of the detail when an order opens,
+  // and the same order in the list when going back
+  useEffect(() => {
+    if (isSplit) return;
+    if (activeId) {
+      rootRef.current?.scrollIntoView({ block: 'start' });
+    } else if (returnToId) {
+      document.getElementById(`order-card-${returnToId}`)?.scrollIntoView({ block: 'center' });
+      setReturnToId(null);
+    }
+  }, [activeId, isSplit, returnToId]);
+
+  const closeDetail = () => {
+    setReturnToId(activeId);
+    setActiveId(null);
+  };
 
   const allVisibleSelected =
     visibleOrders.length > 0 && visibleOrders.every((o) => selectedOrderIds.includes(o._id));
@@ -166,25 +199,64 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
   const toggleSelected = (orderId: string, checked: boolean) =>
     setSelectedOrderIds((ids) => (checked ? [...ids, orderId] : ids.filter((id) => id !== orderId)));
 
-  const updateStatus = async (order: Order, status: string) => {
+  const statusTitle = (status: string) => STATUSES.find((s) => s.value === status)?.title ?? status;
+
+  const saveOrder = async (
+    order: Order,
+    fields: Partial<Order>,
+    unset: (keyof Order)[],
+    successTitle: string,
+    errorTitle: string,
+  ) => {
     setSavingStatus(true);
     try {
-      // The Sanity webhook copies this to the database
-      await client.patch(order._id).set({ status, updatedAt: new Date().toISOString() }).commit();
-      setOrders((list) => list.map((o) => (o._id === order._id ? { ...o, status } : o)));
-      toast.push({
-        status: 'success',
-        title: `${order.orderNumber} marked ${STATUSES.find((s) => s.value === status)?.title ?? status}`,
-      });
+      // A status change is copied to the database by the Sanity webhook
+      await client
+        .patch(order._id)
+        .set({ ...fields, updatedAt: new Date().toISOString() })
+        .unset(unset)
+        .commit();
+      setOrders((list) =>
+        list.map((o) => {
+          if (o._id !== order._id) return o;
+          const next = { ...o, ...fields };
+          for (const key of unset) delete next[key];
+          return next;
+        }),
+      );
+      toast.push({ status: 'success', title: successTitle });
     } catch (err) {
       toast.push({
         status: 'error',
-        title: 'Could not update status',
+        title: errorTitle,
         description: err instanceof Error ? err.message : 'Unknown error',
       });
     } finally {
       setSavingStatus(false);
     }
+  };
+
+  const updateStatus = (order: Order, status: string) =>
+    saveOrder(order, { status }, [], `${order.orderNumber} marked ${statusTitle(status)}`, 'Could not update status');
+
+  const saveTracking = (order: Order, tracking: TrackingInput, markShipped: boolean) => {
+    const fields: Partial<Order> = { shippingCarrier: tracking.carrier };
+    const unset: (keyof Order)[] = [];
+
+    if (tracking.number) fields.trackingNumber = tracking.number;
+    else unset.push('trackingNumber');
+    if (tracking.url) fields.trackingUrl = tracking.url;
+    else unset.push('trackingUrl');
+    if (tracking.number && !order.shippedAt) fields.shippedAt = new Date().toISOString();
+    if (markShipped) fields.status = 'SHIPPED';
+
+    return saveOrder(
+      order,
+      fields,
+      unset,
+      markShipped ? `${order.orderNumber} tracking saved and marked Shipped` : `${order.orderNumber} tracking saved`,
+      'Could not save tracking',
+    );
   };
 
   const copy = async (text: string, what: string) => {
@@ -206,8 +278,28 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
     );
   }
 
+  if (!isSplit && activeOrder) {
+    return (
+      <Box padding={3} ref={rootRef}>
+        <Stack space={3}>
+          <Box>
+            <Button icon={ArrowLeftIcon} mode="bleed" text="All orders" onClick={closeDetail} />
+          </Box>
+          <OrderDetail
+            order={activeOrder}
+            compact
+            savingStatus={savingStatus}
+            onStatusChange={(status) => updateStatus(activeOrder, status)}
+            onSaveTracking={(tracking, markShipped) => saveTracking(activeOrder, tracking, markShipped)}
+            onCopy={copy}
+          />
+        </Stack>
+      </Box>
+    );
+  }
+
   return (
-    <Box padding={4}>
+    <Box padding={[3, 3, 4]} ref={rootRef}>
       <Stack space={4}>
         {/* Header */}
         <Flex align="center" gap={3} wrap="wrap">
@@ -220,21 +312,24 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
 
         {/* Filters */}
         <Stack space={3}>
-          <TabList space={1}>
-            {[{ value: 'ALL', title: 'All' }, ...STATUSES].map((s) => (
-              <Tab
-                key={s.value}
-                id={`status-${s.value}`}
-                aria-controls="order-list"
-                label={`${s.title} (${statusCounts[s.value] ?? 0})`}
-                selected={statusFilter === s.value}
-                onClick={() => setStatusFilter(s.value)}
-              />
-            ))}
-          </TabList>
+          {/* Scrolls sideways when the tabs don't fit */}
+          <Box style={{ overflowX: 'auto' }}>
+            <TabList space={1}>
+              {[{ value: 'ALL', title: 'All' }, ...STATUSES].map((s) => (
+                <Tab
+                  key={s.value}
+                  id={`status-${s.value}`}
+                  aria-controls="order-list"
+                  label={`${s.title} (${statusCounts[s.value] ?? 0})`}
+                  selected={statusFilter === s.value}
+                  onClick={() => setStatusFilter(s.value)}
+                />
+              ))}
+            </TabList>
+          </Box>
           <TextInput
             icon={SearchIcon}
-            placeholder="Search by order number, name or email"
+            placeholder="Search by order number, name, email or tracking number"
             value={search}
             onChange={(event) => setSearch(event.currentTarget.value)}
           />
@@ -246,7 +341,7 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
           onAction={fetchOrders}
         />
 
-        <Grid columns={[1, 1, 2]} gap={4}>
+        <Grid columns={isSplit ? 2 : 1} gap={4}>
           {/* Order list */}
           <Stack space={2} id="order-list">
             <Flex align="center" gap={3} paddingX={3}>
@@ -274,6 +369,7 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
               return (
                 <Card
                   key={order._id}
+                  id={`order-card-${order._id}`}
                   padding={3}
                   radius={2}
                   border
@@ -313,23 +409,26 @@ const OrderListView: React.FC<OrderListViewProps> = ({ filter = '', title }) => 
             })}
           </Stack>
 
-          {/* Order detail */}
-          <Box>
-            {activeOrder ? (
-              <OrderDetail
-                order={activeOrder}
-                savingStatus={savingStatus}
-                onStatusChange={(status) => updateStatus(activeOrder, status)}
-                onCopy={copy}
-              />
-            ) : (
-              !loading && (
-                <Card padding={4} radius={2} tone="transparent" border>
-                  <Text muted>Select an order to see its details.</Text>
-                </Card>
-              )
-            )}
-          </Box>
+          {/* Order detail (narrow screens open it in place of the list) */}
+          {isSplit && (
+            <Box>
+              {activeOrder ? (
+                <OrderDetail
+                  order={activeOrder}
+                  savingStatus={savingStatus}
+                  onStatusChange={(status) => updateStatus(activeOrder, status)}
+                  onSaveTracking={(tracking, markShipped) => saveTracking(activeOrder, tracking, markShipped)}
+                  onCopy={copy}
+                />
+              ) : (
+                !loading && (
+                  <Card padding={4} radius={2} tone="transparent" border>
+                    <Text muted>Select an order to see its details.</Text>
+                  </Card>
+                )
+              )}
+            </Box>
+          )}
         </Grid>
       </Stack>
     </Box>
@@ -347,15 +446,143 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function OrderDetail({
+interface TrackingInput {
+  carrier: string;
+  number: string;
+  url: string;
+}
+
+/** Carrier + tracking number for posted orders, with a link to the carrier's tracking page. */
+function TrackingSection({
   order,
-  savingStatus,
-  onStatusChange,
+  compact,
+  saving,
+  onSave,
   onCopy,
 }: {
   order: Order;
+  compact: boolean;
+  saving: boolean;
+  onSave: (tracking: TrackingInput, markShipped: boolean) => void;
+  onCopy: (text: string, what: string) => void;
+}) {
+  const savedCarrier = order.shippingCarrier ?? 'usps';
+  const [carrier, setCarrier] = useState(savedCarrier);
+  const [number, setNumber] = useState(order.trackingNumber ?? '');
+  const [url, setUrl] = useState(order.trackingUrl ?? '');
+  const [markShipped, setMarkShipped] = useState(true);
+
+  const tracking = { carrier, number: number.trim(), url: url.trim() };
+  const changed =
+    carrier !== savedCarrier ||
+    tracking.number !== (order.trackingNumber ?? '') ||
+    tracking.url !== (order.trackingUrl ?? '');
+  // Nothing to save until there's a number, unless an existing one is being cleared
+  const canSave = changed && (!!tracking.number || !!order.trackingNumber);
+  const offerShipped = order.status === 'PROCESSING' && !!tracking.number;
+  const savedLink = trackingLink(order.shippingCarrier, order.trackingNumber, order.trackingUrl);
+
+  return (
+    <Section title="Tracking">
+      {order.trackingNumber && (
+        <Stack space={2}>
+          <Text size={1}>
+            {carrierTitle(order.shippingCarrier)} · {order.trackingNumber}
+            {order.shippedAt && ` · shipped ${format(new Date(order.shippedAt), 'd MMM yyyy')}`}
+          </Text>
+          <Flex gap={2} wrap="wrap">
+            {savedLink && (
+              <Button
+                as="a"
+                href={savedLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                icon={LaunchIcon}
+                text="Track package"
+                mode="ghost"
+                fontSize={1}
+                padding={2}
+              />
+            )}
+            <Button
+              icon={CopyIcon}
+              text="Copy number"
+              mode="ghost"
+              fontSize={1}
+              padding={2}
+              onClick={() => onCopy(order.trackingNumber ?? '', 'Tracking number')}
+            />
+          </Flex>
+        </Stack>
+      )}
+
+      <Grid columns={compact ? 1 : [1, 3]} gap={2}>
+        <Select
+          aria-label="Carrier"
+          value={carrier}
+          disabled={saving}
+          onChange={(event) => setCarrier(event.currentTarget.value)}
+        >
+          {CARRIERS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.title}
+            </option>
+          ))}
+        </Select>
+        <Box style={compact ? undefined : { gridColumn: 'span 2' }}>
+          <TextInput
+            aria-label="Tracking number"
+            placeholder="Tracking number"
+            value={number}
+            disabled={saving}
+            onChange={(event) => setNumber(event.currentTarget.value)}
+          />
+        </Box>
+      </Grid>
+      {(carrier === 'other' || !!order.trackingUrl) && (
+        <TextInput
+          aria-label="Tracking link"
+          placeholder="Tracking link (https://…)"
+          type="url"
+          value={url}
+          disabled={saving}
+          onChange={(event) => setUrl(event.currentTarget.value)}
+        />
+      )}
+      <Flex align="center" gap={3} wrap="wrap">
+        <Button
+          text={offerShipped && markShipped ? 'Save & mark Shipped' : 'Save tracking'}
+          tone="primary"
+          fontSize={1}
+          padding={2}
+          disabled={saving || !canSave}
+          onClick={() => onSave(tracking, offerShipped && markShipped)}
+        />
+        {offerShipped && canSave && (
+          <Flex as="label" align="center" gap={2}>
+            <Checkbox checked={markShipped} onChange={(event) => setMarkShipped(event.currentTarget.checked)} />
+            <Text size={1}>Also mark as Shipped</Text>
+          </Flex>
+        )}
+      </Flex>
+    </Section>
+  );
+}
+
+function OrderDetail({
+  order,
+  compact = false,
+  savingStatus,
+  onStatusChange,
+  onSaveTracking,
+  onCopy,
+}: {
+  order: Order;
+  /** Narrow-screen layout: not sticky, quantity under the item name */
+  compact?: boolean;
   savingStatus: boolean;
   onStatusChange: (status: string) => void;
+  onSaveTracking: (tracking: TrackingInput, markShipped: boolean) => void;
   onCopy: (text: string, what: string) => void;
 }) {
   const items = order.items ?? [];
@@ -368,7 +595,12 @@ function OrderDetail({
   const email = order.customerEmail || order.shippingEmail;
 
   return (
-    <Card padding={4} radius={3} shadow={1} style={{ position: 'sticky', top: 16 }}>
+    <Card
+      padding={compact ? 3 : 4}
+      radius={3}
+      shadow={1}
+      style={compact ? undefined : { position: 'sticky', top: 16 }}
+    >
       <Stack space={5}>
         {/* Title + status */}
         <Flex align="flex-start" justify="space-between" gap={3} wrap="wrap">
@@ -447,6 +679,17 @@ function OrderDetail({
           </Section>
         </Grid>
 
+        {isPosted(order) && (
+          <TrackingSection
+            key={order._id}
+            order={order}
+            compact={compact}
+            saving={savingStatus}
+            onSave={onSaveTracking}
+            onCopy={onCopy}
+          />
+        )}
+
         {/* Items */}
         <Section title={`Items (${itemCount(order)})`}>
           <Stack space={2}>
@@ -461,10 +704,17 @@ function OrderDetail({
                       <Text size={1} muted>
                         {[variant, item.sku && `SKU ${item.sku}`].filter(Boolean).join(' · ')}
                       </Text>
+                      {compact && (
+                        <Text size={1} muted>
+                          {item.quantity ?? 1} × {money(item.price)}
+                        </Text>
+                      )}
                     </Stack>
-                    <Text size={1} muted>
-                      {item.quantity ?? 1} × {money(item.price)}
-                    </Text>
+                    {!compact && (
+                      <Text size={1} muted>
+                        {item.quantity ?? 1} × {money(item.price)}
+                      </Text>
+                    )}
                     <Box style={{ minWidth: 70, textAlign: 'right' }}>
                       <Text weight="medium">{money((item.price ?? 0) * (item.quantity ?? 1))}</Text>
                     </Box>

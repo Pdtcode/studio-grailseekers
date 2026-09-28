@@ -122,7 +122,7 @@ const BulkOrderActions: React.FC<BulkOrderActionsProps> = ({
   return (
     <>
       <Card padding={3} tone="primary" shadow={1}>
-        <Flex align="center" gap={3}>
+        <Flex align="center" gap={3} wrap="wrap">
           <Text weight="medium">
             {selectedOrderIds.length} order{selectedOrderIds.length !== 1 ? 's' : ''} selected
           </Text>

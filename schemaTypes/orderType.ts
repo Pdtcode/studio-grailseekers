@@ -1,9 +1,22 @@
 import { defineField, defineType } from "sanity";
+import { CARRIERS, carrierTitle } from "../lib/tracking";
+
+// Tracking only applies to orders that are posted (older orders have no method and were all shipped)
+const notShipped = ({ document }: { document?: Record<string, unknown> }) =>
+  document?.deliveryMethod === "pickup" || document?.deliveryMethod === "inperson";
 
 export default defineType({
   name: "order",
   title: "Order",
   type: "document",
+  fieldsets: [
+    {
+      name: "tracking",
+      title: "Shipment tracking",
+      description: "Also editable from the Order Manager",
+      hidden: notShipped,
+    },
+  ],
   fields: [
     defineField({
       name: "orderNumber",
@@ -62,6 +75,37 @@ export default defineType({
         layout: "dropdown",
       },
       validation: (Rule) => Rule.required(),
+    }),
+    defineField({
+      name: "shippingCarrier",
+      title: "Carrier",
+      type: "string",
+      fieldset: "tracking",
+      options: {
+        list: CARRIERS.map(({ title, value }) => ({ title, value })),
+        layout: "radio",
+        direction: "horizontal",
+      },
+    }),
+    defineField({
+      name: "trackingNumber",
+      title: "Tracking Number",
+      type: "string",
+      fieldset: "tracking",
+    }),
+    defineField({
+      name: "trackingUrl",
+      title: "Tracking Link",
+      type: "url",
+      fieldset: "tracking",
+      description: "Only needed for other carriers. USPS, UPS, FedEx and DHL links are built from the tracking number.",
+      hidden: ({ document }) => document?.shippingCarrier !== "other" && !document?.trackingUrl,
+    }),
+    defineField({
+      name: "shippedAt",
+      title: "Shipped On",
+      type: "datetime",
+      fieldset: "tracking",
     }),
     defineField({
       name: "items",
@@ -219,7 +263,15 @@ export default defineType({
   preview: {
     select: {
       title: "orderNumber",
-      subtitle: "status",
+      status: "status",
+      carrier: "shippingCarrier",
+      trackingNumber: "trackingNumber",
     },
+    prepare: ({ title, status, carrier, trackingNumber }) => ({
+      title,
+      subtitle: [status, trackingNumber && `${carrierTitle(carrier)} ${trackingNumber}`]
+        .filter(Boolean)
+        .join(" · "),
+    }),
   },
 });
