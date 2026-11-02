@@ -24,6 +24,7 @@ const HIDDEN_TYPES = [
   'dropSettings',
   'promoUsage', // nothing records promo usage
   'syncState', // webhook/sync bookkeeping, written by the website
+  'pickupLocation', // checkout no longer offers collect-later pickup
 ]
 
 // Types that can't be created from "Create new": singletons, code-written, or hidden
@@ -185,7 +186,6 @@ export default defineConfig({
                     S.documentTypeListItem('category').title('Categories'),
                     S.documentTypeListItem('collection').title('Collections'),
                     S.documentTypeListItem('promoCode').title('Promo Codes'),
-                    S.documentTypeListItem('pickupLocation').title('Pickup Locations'),
                     S.listItem()
                       .title('Spend & Save')
                       .id('spendCampaign')
