@@ -2,6 +2,15 @@ import { defineField, defineType } from "sanity";
 import { NeonInventoryDisplay } from "../components/NeonInventoryDisplay";
 import { ImageDisplayInput } from "../components/ImageDisplayInput";
 
+// Lets the cart and checkout show the color a customer picked
+const photoColorField = defineField({
+  name: "color",
+  title: "Color",
+  type: "string",
+  description:
+    'Optional. The color in this photo, spelled like the color option, e.g. "Blue". The cart shows the first photo tagged with the color picked, so put each color\'s front view before its back.',
+});
+
 export const productType = defineType({
   name: "product",
   title: "Product",
@@ -60,6 +69,7 @@ export const productType = defineType({
       options: {
         hotspot: true,
       },
+      fields: [photoColorField],
       validation: (Rule) => Rule.required(),
     }),
     defineField({
@@ -72,6 +82,7 @@ export const productType = defineType({
           options: {
             hotspot: true,
           },
+          fields: [photoColorField],
           // Images will automatically get a unique key from Sanity
         },
       ],
