@@ -171,6 +171,9 @@ export default defineConfig({
                   ])
               ),
             S.divider(),
+            // Entries in the Grails section of the homepage
+            S.documentTypeListItem('project').title('Grails'),
+
             // Less frequently edited store configuration
             S.listItem()
               .title('Store Setup')

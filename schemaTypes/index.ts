@@ -15,12 +15,14 @@ import syncStateType from "./syncStateType";
 import inventoryAdjustmentType from "./inventoryAdjustmentType";
 import siteProtectionType from "./siteProtectionType";
 import spendCampaignType from "./spendCampaignType";
+import projectType from "./projectType";
 
 export const schemaTypes = [
     // Content types
     blockContentType,
     postType,
     authorType,
+    projectType,
 
     // Store types
     productType,
